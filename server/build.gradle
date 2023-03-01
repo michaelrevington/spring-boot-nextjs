@@ -73,3 +73,12 @@ findNode {
         findExecutable("node", "node.path", buildPropsFileName)
     }
 }
+
+findNpm {
+    group 'configure'
+    description 'Find path to npm executable.'
+
+    doFirst {
+        findExecutable("npm", "npm.path", buildPropsFileName)
+    }
+}
