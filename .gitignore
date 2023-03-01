@@ -36,3 +36,5 @@ yarn-error.log*
 
 # Ignore Gradle build output directory
 build
+
+.idea
