@@ -27,3 +27,49 @@ tasks.register("buildClient")
 tasks.register("buildRelease")
 tasks.register("run")
 
+final def buildPropsFileName = "\\build.properties";
+
+def findExecutable(exec, key, fileName) {
+    var command = "";
+
+    final var os = System.getProperty("os.name").toLowerCase();
+    if (os.contains("windows")) {
+        command = "where "
+    } else if (os.contains("linux")) {
+        command = "which "
+    } else {
+        throw new Exception("Please provide the absolute path of %s in build.properties using %s.".formatted(exec, key))
+    }
+
+    command += exec;
+
+    var proc = command.execute()
+
+    var outputs = new StringWriter();
+    proc.waitForProcessOutput(outputs as Appendable, null);
+
+    if (proc.exitValue() != 0 || outputs.buffer.empty)
+        throw new Exception("Please provide the absolute path of %s in build.properties using %s.".formatted(exec, key))
+
+    var executable = outputs.buffer.readLines().last().toString();
+
+    var buildPropsFile = file(fileName)
+
+    var buildProps = new Properties();
+    if (buildPropsFile.exists())
+        buildPropsFile.withInputStream {buildProps.load(it)}
+
+    buildProps.setProperty(key, executable)
+
+    buildPropsFile.createNewFile();
+    buildPropsFile.withOutputStream {buildProps.store(it, "")}
+}
+
+findNode {
+    group 'configure'
+    description 'Find path to node executable.'
+
+    doFirst {
+        findExecutable("node", "node.path", buildPropsFileName)
+    }
+}
