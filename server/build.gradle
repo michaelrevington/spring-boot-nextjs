@@ -20,3 +20,10 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+tasks.register("findNode")
+tasks.register("findNpm")
+tasks.register("buildClient")
+tasks.register("buildRelease")
+tasks.register("run")
+
