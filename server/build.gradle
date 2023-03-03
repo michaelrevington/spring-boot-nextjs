@@ -27,7 +27,9 @@ tasks.register("buildClient")
 tasks.register("buildRelease")
 tasks.register("run")
 
-final def buildPropsFileName = "\\build.properties";
+final def buildPropsFileName = "\\build.properties",
+    NODE_PATH = "node.path",
+    NPM_PATH = "npm.path";
 
 def findExecutable(exec, key, fileName) {
     var command = "";
@@ -65,12 +67,20 @@ def findExecutable(exec, key, fileName) {
     buildPropsFile.withOutputStream {buildProps.store(it, "")}
 }
 
+def destroyProcess(proc) {
+    proc.children().forEach {processHandle -> {
+        destroyProcess(processHandle)
+    }}
+
+    proc.destroy();
+}
+
 findNode {
     group 'configure'
     description 'Find path to node executable.'
 
     doFirst {
-        findExecutable("node", "node.path", buildPropsFileName)
+        findExecutable("node", NODE_PATH, buildPropsFileName)
     }
 }
 
@@ -79,6 +89,53 @@ findNpm {
     description 'Find path to npm executable.'
 
     doFirst {
-        findExecutable("npm", "npm.path", buildPropsFileName)
+        findExecutable("npm", NPM_PATH, buildPropsFileName)
+    }
+}
+
+run {
+    group 'application'
+    description 'Runs this project\'s front end in development server'
+
+    var buildPropsFile = file(buildPropsFileName)
+
+    var buildProps = new Properties();
+    buildPropsFile.withInputStream {buildProps.load(it)}
+
+    var NPM;
+    if (!buildProps.containsKey(NPM_PATH) || !(NPM = buildProps.get(NPM_PATH)).toString().equals(""))
+        dependsOn "findNpm"
+
+    var process;
+    doFirst {
+        var command = "%s run dev --prefix %s".formatted(NPM, rootDir.toString());
+        println(command)
+
+        Thread th = new Thread(() -> {
+            process = command.execute()
+            process.waitForProcessOutput(System.out, System.err)
+        })
+
+        th.start();
+
+        boolean shouldIterate = true;
+
+        Scanner sc = new Scanner(System.in)
+        while (shouldIterate) {
+            String cmd = sc.next().trim();
+
+            if (cmd.equals("quit")) {
+                destroyProcess(process.toHandle())
+
+                th.interrupt()
+
+                shouldIterate = false
+            }
+        }
+     }
+
+    doLast {
+        if (process != null && process.alive)
+            process.destroy()
     }
 }
